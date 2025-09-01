@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Insertos DOCX — Demo UI</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#334155; --text:#e5e7eb; --sub:#94a3b8;
+      --pri:#22c55e; --pri-2:#16a34a; --warn:#f59e0b; --err:#ef4444; --ok:#10b981;
+      --card:#0b1220; --border:#1f2937; --shadow: 0 10px 30px rgba(0,0,0,.35); --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{ margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 700px at 20% -10%, #1e293b 0%, transparent 60%) , var(--bg);
+      color:var(--text); min-height:100vh; padding:40px 20px;
+    }
+    .container{max-width:1100px; margin:0 auto;}
+    h1{font-size:26px; margin:0 0 6px}
+    p.lead{color:var(--sub); margin:0 0 24px}
+    .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:24px 0}
+    .step{ background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow);
+    }
+    .step h2{font-size:18px; margin:0 0 8px}
+    .badge{display:inline-block; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.06); color:var(--sub); font-size:12px; margin-bottom:10px}
+    .panel{ background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px dashed var(--muted); border-radius:12px; padding:16px;
+    }
+    .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+    .row > *{flex:1}
+    .hint{color:var(--sub); font-size:12px; margin-top:6px}
+    input[type="file"], input[type="search"], select, button, .btn{
+      padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#0b1220; color:var(--text);
+    }
+    button.primary{
+      background:linear-gradient(180deg, var(--pri), var(--pri-2)); border:none; color:white; font-weight:700; letter-spacing:.2px;
+      box-shadow: 0 6px 16px rgba(34,197,94,.25); cursor:pointer;
+    }
+    button.primary:disabled{opacity:.6; cursor:not-allowed}
+    button.ghost{background:transparent}
+    .btn-sm{padding:8px 10px; font-size:13px}
+    .grid{margin-top:10px; max-height:300px; overflow:auto; border:1px solid var(--border); border-radius:12px; background:#0b1220;}
+    .grid .toolbar{display:flex; gap:8px; padding:10px; border-bottom:1px solid var(--border); position:sticky; top:0; background:#0b1220; z-index:2}
+    .list{padding:4px 6px}
+    .item{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; transition:.15s;}
+    .item:hover{background:rgba(255,255,255,.04)}
+    .idpill{min-width:36px; height:28px; display:grid; place-items:center; border-radius:8px; background:#0f1a2d; color:#a5b4fc; border:1px solid #1f2a44; font-weight:700}
+    .meta{display:flex; flex-direction:column}
+    .meta .title{font-size:14px}
+    .meta .file{font-size:12px; color:var(--sub)}
+    .right{margin-left:auto; color:var(--sub); font-size:12px}
+    .footer{ margin-top:18px; display:flex; gap:10px; justify-content:flex-end; align-items:center; }
+    .status{font-size:13px; color:var(--sub)}
+    .pill-ok{color:#10b981}
+    .pill-warn{color:var(--warn)}
+    .pill-err{color:var(--err)}
+    .chip{display:inline-block; padding:6px 10px; background:#0f1a2d; border:1px solid #1f2843; border-radius:999px; color:#a5b4fc; font-size:12px}
+    .toast{ position:fixed; right:16px; bottom:16px; background:#0b1220; border:1px solid var(--border);
+      padding:12px 14px; border-radius:12px; box-shadow:var(--shadow); color:var(--text); max-width:360px; display:none;
+    }
+    .progress{ height:6px; width:100%; background:#0b1220; border:1px solid var(--border); border-radius:999px; overflow:hidden}
+    .bar{height:100%; width:0; background:linear-gradient(90deg, #22c55e, #16a34a); transition:width .3s}
+    .muted{color:var(--sub)} .sep{height:1px; background:var(--border); margin:12px 0}
+    .inline{display:inline-flex; align-items:center; gap:8px}
+    @media (max-width:980px){ .steps{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Insertos DOCX</h1>
+    <p class="lead">Sube tu documento, elige los insertos disponibles (1–35) y descarga el archivo compuesto preservando el formato.</p>
+
+    <div class="steps">
+      <!-- Paso 1 -->
+      <section class="step">
+        <span class="badge">Paso 1</span>
+        <h2>Seleccionar documento base (.docx)</h2>
+        <div class="panel">
+          <form id="formUpload" class="row">
+            <input id="fileInput" type="file" accept=".docx" required />
+            <button class="primary" type="submit" style="min-width:180px">Usar este documento</button>
+          </form>
+          <div id="uploadInfo" class="hint"></div>
+        </div>
+      </section>
+
+      <!-- Paso 2 -->
+      <section class="step">
+        <span class="badge">Paso 2</span>
+        <h2>Selecciona insertos disponibles</h2>
+        <div class="panel">
+          <div class="grid">
+            <div class="toolbar">
+              <input id="search" type="search" placeholder="Buscar por título/archivo..." />
+              <button id="btnCheckAll" type="button" class="btn btn-sm">Seleccionar todo</button>
+              <button id="btnUncheckAll" type="button" class="btn btn-sm ghost">Quitar selección</button>
+              <span id="selCount" class="right chip">0 seleccionados</span>
+            </div>
+            <div id="insertosList" class="list"></div>
+          </div>
+          <div class="hint">La lista viene de <code>GET /api/insertos</code>. Asegúrate de que los archivos en <em>assets/insertos</em> empiecen por número (p. ej. <strong>1 - Título.docx</strong>).</div>
+        </div>
+      </section>
+
+      <!-- Paso 3 -->
+      <section class="step">
+        <span class="badge">Paso 3</span>
+        <h2>Componer y descargar</h2>
+        <div class="panel">
+          <div class="row">
+            <button id="btnCompose" class="primary" type="button" style="min-width:220px">Componer documento</button>
+            <div style="flex:2">
+              <div class="progress"><div id="bar" class="bar"></div></div>
+              <div id="composeInfo" class="hint" style="margin-top:6px">El resultado se descargará como .docx.</div>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="row">
+            <label class="inline" style="flex:none">
+              <input type="checkbox" id="chkBreak" />
+              <span>Salto de página entre insertos</span>
+            </label>
+          </div>
+
+          <div class="sep"></div>
+          <div class="status">
+            <div>Base seleccionada: <span id="baseName" class="muted">—</span></div>
+            <div>Insertos: <span id="idsPreview" class="muted">—</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // =========================
+    // Estado y utilidades
+    // =========================
+    const state = {
+      baseFile: null,          // File (no se sube hasta componer)
+      insertos: [],
+      selected: new Set()
+    };
+
+    const $ = (s, d=document)=>d.querySelector(s);
+    const $$ = (s, d=document)=>Array.from(d.querySelectorAll(s));
+    const toast = (msg, type='info')=>{
+      const el = $('#toast');
+      el.textContent = msg;
+      el.style.borderColor = type==='error' ? 'var(--err)' : type==='ok' ? 'var(--ok)' : 'var(--border)';
+      el.style.display = 'block';
+      setTimeout(()=>{ el.style.display='none'; }, 3000);
+    };
+    const formatSize = (bytes)=>{
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+      return (bytes/1024/1024).toFixed(1) + ' MB';
+    };
+    const escapeHtml = (s)=> String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+
+    // =========================
+    // Render de lista de insertos
+    // =========================
+    function renderList() {
+      const q = $('#search').value.trim().toLowerCase();
+      const list = $('#insertosList');
+      list.innerHTML = '';
+
+      const filtered = state.insertos.filter(it=>{
+        const title = (it.title || '').toLowerCase();
+        const file = (it.filename || '').toLowerCase();
+        return !q || title.includes(q) || file.includes(q) || String(it.id).includes(q);
+      });
+
+      if (!filtered.length) {
+        list.innerHTML = '<div class="item muted">No hay resultados…</div>';
+        $('#selCount').textContent = `${state.selected.size} seleccionados`;
+        return;
+      }
+
+      for (const it of filtered) {
+        const checked = state.selected.has(it.id);
+        const div = document.createElement('label');
+        div.className = 'item';
+        div.innerHTML = `
+          <input type="checkbox" data-id="${it.id}" ${checked ? 'checked':''}/>
+          <span class="idpill">${it.id ?? '—'}</span>
+          <div class="meta">
+            <span class="title">${it.title ? escapeHtml(it.title) : 'Sin título'}</span>
+            <span class="file">${escapeHtml(it.filename)} • ${formatSize(it.size||0)}</span>
+          </div>
+          <span class="right">ID ${it.id ?? 'n/a'}</span>
+        `;
+        list.appendChild(div);
+      }
+
+      $$('#insertosList input[type=checkbox]').forEach(cb=>{
+        cb.addEventListener('change', (e)=>{
+          const id = Number(e.target.dataset.id);
+          if (e.target.checked) state.selected.add(id);
+          else state.selected.delete(id);
+          updateSelectionPreview();
+        });
+      });
+
+      $('#selCount').textContent = `${state.selected.size} seleccionados`;
+    }
+
+    function updateSelectionPreview(){
+      const arr = Array.from(state.selected).sort((a,b)=>a-b);
+      $('#idsPreview').textContent = arr.length ? arr.join(', ') : '—';
+      $('#selCount').textContent = `${state.selected.size} seleccionados`;
+    }
+
+    // =========================
+    // Cargar insertos (GET /api/insertos)
+    // =========================
+    async function loadInsertos(){
+      try{
+        const res = await fetch(`http://192.168.1.20:3018/api/insertos`);
+        const json = await res.json();
+        state.insertos = (json.items || []).map(it=>{
+          let title = it.title || null;
+          if (!title && it.filename){
+            const m = it.filename.match(/^\d{1,4}[\s._-]+(.+?)\.docx$/i);
+            if (m) title = m[1];
+          }
+          return { ...it, title };
+        }).filter(it => it.id !== null);
+        renderList();
+      }catch(e){
+        console.error(e);
+        toast('No se pudo cargar /api/insertos', 'error');
+      }
+    }
+
+    // =========================
+    // Paso 1: seleccionar base (no sube)
+    // =========================
+    const formUpload = $('#formUpload');
+    formUpload?.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const file = $('#fileInput').files[0];
+      if (!file) { toast('Selecciona un .docx primero', 'error'); return; }
+      if (!file.name.toLowerCase().endsWith('.docx')) { toast('El archivo debe ser .docx', 'error'); return; }
+
+      state.baseFile = file;
+      $('#uploadInfo').innerHTML = `<span class="pill-ok">✔</span> Seleccionado: <strong>${escapeHtml(file.name)}</strong> • ${formatSize(file.size)}`;
+      $('#baseName').textContent = file.name;
+      toast('Documento base listo', 'ok');
+    });
+
+    // =========================
+    // Paso 3: Componer (POST /api/compose-once)
+    // =========================
+    $('#btnCompose').addEventListener('click', async ()=>{
+      const ids = Array.from(state.selected).sort((a,b)=>a-b);
+      if (!state.baseFile){ toast('Primero selecciona tu documento base (Paso 1)', 'error'); return; }
+      if (!ids.length){ toast('Selecciona al menos un inserto (Paso 2)', 'error'); return; }
+
+      const pageBreak = $('#chkBreak').checked;
+
+      const fd = new FormData();
+      fd.append('file', state.baseFile);
+      fd.append('insertIds', JSON.stringify(ids));
+      fd.append('pageBreakBetween', pageBreak ? 'true' : 'false');
+
+      setBusy(true);
+      try{
+        const res = await fetch(`http://192.168.1.20:3018/api/compose-once`, { method:'POST', body: fd });
+        if(!res.ok){
+          const msg = await safeText(res);
+          throw new Error(msg || 'Error de composición');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `documento_compuesto_${Date.now()}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        toast('Documento compuesto descargado', 'ok');
+      }catch(err){
+        console.error(err);
+        toast(err.message || 'No se pudo componer el documento', 'error');
+      }finally{
+        setBusy(false);
+      }
+    });
+
+    function setBusy(on){
+      $('#btnCompose').disabled = on;
+      $('#bar').style.width = on ? '80%' : '0%';
+      $('#composeInfo').textContent = on ? 'Procesando…' : 'El resultado se descargará como .docx.';
+    }
+    async function safeText(res){ try{ return await res.text(); }catch{ return null; } }
+
+    // Select all / none
+    $('#btnCheckAll').addEventListener('click', ()=>{
+      state.insertos.forEach(it=>state.selected.add(it.id));
+      renderList(); updateSelectionPreview();
+    });
+    $('#btnUncheckAll').addEventListener('click', ()=>{
+      state.selected.clear();
+      renderList(); updateSelectionPreview();
+    });
+    $('#search').addEventListener('input', renderList);
+
+    // Init
+    loadInsertos();
+  </script>
+</body>
+</html>
