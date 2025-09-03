@@ -10,6 +10,7 @@ const insertosRoutes = require('./routes/insertos.routes');
 const composeRoutes = require('./routes/compose.routes');
 const composeOnceRoutes = require('./routes/compose-once.routes')
 const inspectRoutes = require('./routes/inspect.routes');
+const minutaRoutes = require('./routes/minuta.routes');
 const { ensureBaseDirs } = require('./services/storage.service');
 
 const app = express();
@@ -59,5 +60,6 @@ app.use('/api/insertos', insertosRoutes);
 app.use('/api/compose', composeRoutes);
 app.use('/api/compose-once', composeOnceRoutes); // nuevo (1 paso, en memoria)
 app.use('/api/inspect', inspectRoutes);
+app.use('/api/minuta', minutaRoutes);
 
 module.exports = app;

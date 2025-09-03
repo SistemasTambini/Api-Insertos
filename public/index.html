@@ -30,7 +30,7 @@
     .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
     .row > *{flex:1}
     .hint{color:var(--sub); font-size:12px; margin-top:6px}
-    input[type="file"], input[type="search"], select, button, .btn{
+    input[type="file"], input[type="search"], input[type="text"], select, button, .btn{
       padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#0b1220; color:var(--text);
     }
     button.primary{
@@ -53,8 +53,8 @@
     .footer{ margin-top:18px; display:flex; gap:10px; justify-content:flex-end; align-items:center; }
     .status{font-size:13px; color:var(--sub)}
     .pill-ok{color:#10b981}
-    .pill-warn{color:var(--warn)}
-    .pill-err{color:var(--err)}
+    .pill-warn{color:#f59e0b}
+    .pill-err{color:#ef4444}
     .chip{display:inline-block; padding:6px 10px; background:#0f1a2d; border:1px solid #1f2843; border-radius:999px; color:#a5b4fc; font-size:12px}
     .toast{ position:fixed; right:16px; bottom:16px; background:#0b1220; border:1px solid var(--border);
       padding:12px 14px; border-radius:12px; box-shadow:var(--shadow); color:var(--text); max-width:360px; display:none;
@@ -132,6 +132,48 @@
           </div>
         </div>
       </section>
+
+      <!-- PASO MINUTA -->
+      <section class="step">
+        <span class="badge">Minuta → Documento</span>
+        <h2>Insertar Minuta en el marcador [MINUTA]</h2>
+        <div class="panel">
+          <div class="row">
+            <input id="minutaInput" type="file" accept=".docx" />
+            <input id="destinoInput" type="file" accept=".docx" />
+          </div>
+          <div class="row">
+            <input id="minutaPlaceholder" type="text" value="[MINUTA]" />
+            <label class="inline" style="flex:none">
+              <input type="checkbox" id="chkMinBefore" />
+              <span>Salto de página ANTES</span>
+            </label>
+            <label class="inline" style="flex:none">
+              <input type="checkbox" id="chkMinAfter" />
+              <span>Salto de página DESPUÉS</span>
+            </label>
+          </div>
+
+          <div class="row" style="margin-top:8px">
+            <button id="btnMinuta" class="primary" type="button" style="min-width:220px">Insertar Minuta</button>
+            <div style="flex:2">
+              <div class="progress"><div id="barMin" class="bar"></div></div>
+              <div id="composeInfoMin" class="hint" style="margin-top:6px">Se descargará el documento destino con la Minuta insertada.</div>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+          <div class="status">
+            <div>Minuta: <span id="minutaName" class="muted">—</span></div>
+            <div>Destino: <span id="destinoName" class="muted">—</span></div>
+          </div>
+
+          <div class="hint">
+            El destino debe contener un párrafo con <code>[MINUTA]</code> (o el placeholder que indiques) exactamente, sin texto adicional en la misma línea.
+          </div>
+        </div>
+      </section>
+      <!-- /PASO MINUTA -->
     </div>
   </div>
 
@@ -142,9 +184,13 @@
     // Estado y utilidades
     // =========================
     const state = {
-      baseFile: null,          // File (no se sube hasta componer)
+      baseFile: null,          // compose-once
       insertos: [],
       selected: new Set()
+    };
+    const mState = {           // minuta
+      minutaFile: null,
+      destinoFile: null
     };
 
     const $ = (s, d=document)=>d.querySelector(s);
@@ -302,6 +348,12 @@
       $('#bar').style.width = on ? '80%' : '0%';
       $('#composeInfo').textContent = on ? 'Procesando…' : 'El resultado se descargará como .docx.';
     }
+    function setBusyMin(on){
+      $('#btnMinuta').disabled = on;
+      $('#barMin').style.width = on ? '80%' : '0%';
+      $('#composeInfoMin').textContent = on ? 'Procesando…' : 'Se descargará el documento destino con la Minuta insertada.';
+    }
+
     async function safeText(res){ try{ return await res.text(); }catch{ return null; } }
 
     // Select all / none
@@ -314,6 +366,65 @@
       renderList(); updateSelectionPreview();
     });
     $('#search').addEventListener('input', renderList);
+
+    // =========================
+    // Minuta: listeners de archivos
+    // =========================
+    $('#minutaInput')?.addEventListener('change', (e)=>{
+      const f = e.target.files[0];
+      mState.minutaFile = f || null;
+      $('#minutaName').textContent = f ? `${f.name} • ${formatSize(f.size)}` : '—';
+    });
+    $('#destinoInput')?.addEventListener('change', (e)=>{
+      const f = e.target.files[0];
+      mState.destinoFile = f || null;
+      $('#destinoName').textContent = f ? `${f.name} • ${formatSize(f.size)}` : '—';
+    });
+
+    // =========================
+    // Minuta: POST /api/minuta
+    // =========================
+    $('#btnMinuta').addEventListener('click', async ()=>{
+      if (!mState.minutaFile){ toast('Selecciona el archivo de la MINUTA', 'error'); return; }
+      if (!mState.destinoFile){ toast('Selecciona el archivo DESTINO', 'error'); return; }
+      if (!mState.minutaFile.name.toLowerCase().endsWith('.docx') || !mState.destinoFile.name.toLowerCase().endsWith('.docx')){
+        toast('Ambos archivos deben ser .docx', 'error'); return;
+      }
+      const placeholder = ($('#minutaPlaceholder').value || '[MINUTA]').trim();
+      const before = $('#chkMinBefore').checked;
+      const after  = $('#chkMinAfter').checked;
+
+      const fd = new FormData();
+      fd.append('minuta', mState.minutaFile);
+      fd.append('destino', mState.destinoFile);
+      fd.append('placeholder', placeholder);
+      fd.append('pageBreakBefore', before ? 'true' : 'false');
+      fd.append('pageBreakAfter', after ? 'true' : 'false');
+
+      setBusyMin(true);
+      try{
+        const res = await fetch('http://192.168.1.20:3018/api/minuta', { method:'POST', body: fd });
+        if(!res.ok){
+          const msg = await safeText(res);
+          throw new Error(msg || 'Error al insertar minuta');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `destino_con_minuta_${Date.now()}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast('Minuta insertada correctamente', 'ok');
+      }catch(err){
+        console.error(err);
+        toast(err.message || 'No se pudo insertar la minuta', 'error');
+      }finally{
+        setBusyMin(false);
+      }
+    });
 
     // Init
     loadInsertos();
